@@ -24,4 +24,23 @@ createASMFile 12 "6 +4+ 4- 2"
 createASMFile 8 "4*4/2"
 createASMFile 10 "- - +10"
 
+createASMFile 0 '0==1'
+createASMFile 1 '42==42'
+createASMFile 1 '0!=1'
+createASMFile 0 '42!=42'
+
+createASMFile 1 '0<1'
+createASMFile 0 '1<1'
+createASMFile 0 '2<1'
+createASMFile 1 '0<=1'
+createASMFile 1 '1<=1'
+createASMFile 0 '2<=1'
+
+createASMFile 1 '1>0'
+createASMFile 0 '1>1'
+createASMFile 0 '1>2'
+createASMFile 1 '1>=0'
+createASMFile 1 '1>=1'
+createASMFile 0 '1>=2'
+
  Write-Host "OK"

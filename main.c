@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool startswith(char* p, char* q) {
+	return strncmp(p, q, strlen(q)) == 0;
+}
+
 typedef enum {
 	TK_PUNCT, // Punctuators
 	TK_NUM,   // Numeric literals
@@ -81,6 +85,15 @@ static Token* new_token(TokenKind kind, char* start, char* end)
 	return t;
 }
 
+// Read a punctuator token from p and returns its length.
+static int read_punct(char* p) {
+	if (startswith(p, "==") || startswith(p, "!=") ||
+		startswith(p, "<=") || startswith(p, ">="))
+		return 2;
+
+	return ispunct(*p) ? 1 : 0;
+}
+
 Token* tokenize(void)
 {
 	char* p = current_input; 
@@ -100,10 +113,10 @@ Token* tokenize(void)
 			curr->len = p - q;
 			continue;
 		}
-
-		if (ispunct(*p)) {
-			curr = curr->next = new_token(TK_PUNCT, p, p + 1);
-			p++;
+		int len = read_punct(p);
+		if (len > 0) {
+			curr = curr->next = new_token(TK_PUNCT, p, p + len);
+			p += curr->len;
 			continue;
 		}
 
@@ -132,6 +145,10 @@ typedef enum {
 	ND_DIV, // /
 	ND_NUM, // Integer
 	ND_NEG, // unary -
+	ND_EQ,  // ==
+	ND_NE,  // !=
+	ND_LT,  // <
+	ND_LE,  // <=
 } NodeKind;
 
 // AST node type
@@ -170,13 +187,71 @@ static Node* new_unary(NodeKind kind, Node* expr)
 }
 
 static Node* expr(Token** rest, Token* tok);
+static Node* equality(Token** rest, Token* tok);
+static Node* relational(Token** rest, Token* tok);
+static Node* add(Token** rest, Token* tok);
 static Node* mul(Token** rest, Token* tok);
 static Node* unary(Token** rest, Token* tok);
 static Node* primary(Token** rest, Token* tok);
 
 
-// expr = mul ("+" mul | "-" mul)*
+// expr = equality
 static Node* expr(Token** rest, Token* tok)
+{
+	return equality(rest, tok);
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+static Node* equality(Token** rest, Token* tok)
+{
+	Node* node = relational(&tok, tok);
+	for (;;) {
+		if (equal(tok, "==")) {
+			node = new_binary(ND_EQ, node, relational(&tok, tok->next));
+			continue;
+		}
+
+		if (equal(tok, "!=")) {
+			node = new_binary(ND_NE, node, relational(&tok, tok->next));
+			continue;
+		}
+		*rest = tok;
+		return node;
+	}
+}
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node* relational(Token** rest, Token* tok)
+{
+	Node* node = add(&tok, tok);
+	for (;;) {
+		if (equal(tok, "<")) {
+			node = new_binary(ND_LT, node, add(&tok, tok->next));
+			continue;
+		}
+
+		if (equal(tok, "<=")) {
+			node = new_binary(ND_LE, node, add(&tok, tok->next));
+			continue;
+		}
+
+		if (equal(tok, ">")) {
+			//brilliant
+			node = new_binary(ND_LT, add(&tok, tok->next), node);
+			continue;
+		}
+
+		if (equal(tok, ">=")) {
+			//brilliant
+			node = new_binary(ND_LE, add(&tok, tok->next), node);
+			continue;
+		}
+
+		*rest = tok;
+		return node;
+	}
+}
+//// add = mul ("+" mul | "-" mul)*
+static Node* add(Token** rest, Token* tok)
 {
 	Node* node = mul(&tok, tok);
 	for (;;) {
@@ -200,12 +275,12 @@ static Node* mul(Token** rest, Token* tok)
 	Node* node = unary(&tok, tok);
 	for (;;) {
 		if (equal(tok, "*")) {
-			node = new_binary(ND_MUL, node, primary(&tok, tok->next));
+			node = new_binary(ND_MUL, node, unary(&tok, tok->next));
 			continue;
 		}
 
 		if (equal(tok, "/")) {
-			node = new_binary(ND_DIV, node, primary(&tok, tok->next));
+			node = new_binary(ND_DIV, node, unary(&tok, tok->next));
 			continue;
 		}
 
@@ -295,9 +370,42 @@ static void gen_expr(Node* node)
 			printf("    cqo\n");
 			printf("    idiv rdi\n");
 			return;
-		default:
-			error("invalid expression");
+		case ND_EQ:
+		case ND_NE:
+		case ND_LT:
+		case ND_LE:
+			// Compares the first source operand with the second source operand
+		  // and sets the status flags in the EFLAGS register according to
+		  // the results.
+		  // The comparison is performed by subtracting the second operand from the
+		  // first operand and then setting the status flags in the same manner as
+		  // the SUB instruction. When an immediate value is used as an operand,
+		  // it is sign-extended to the length of the first operand
+			printf("  cmp rax, rdi\n");
+
+			if (node->kind == ND_EQ) {
+				//The sete instruction (and its equivalent, setz)
+				//sets its argument to 1 if the zero flag is set or to 0 otherwise
+				printf("  sete al\n");
+			}
+			else if (node->kind == ND_NE) {
+				// 	SETNE r/m8 	Set byte if not equal (ZF=0).
+				printf("  setne al\n");
+			}
+			else if (node->kind == ND_LT) {
+				//SETL r/m8 	Set byte if less (SF<>OF).
+				printf("  setl al\n");
+			}
+			else if (node->kind == ND_LE) {
+				// 	SETLE r/m8 	Set byte if less or equal (ZF=1 or SF<>OF).
+				printf("  setle al\n");
+			}
+
+			//printf("  movzb %%al, %%rax\n");
+			printf("  movzx rax, al\n");
+			return;
 	}
+	error("invalid expression");
 }
 
 
