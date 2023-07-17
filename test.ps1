@@ -22,6 +22,6 @@ createASMFile 12 "10+2"
 createASMFile 12 "6+4+4-2"
 createASMFile 12 "6 +4+ 4- 2"
 createASMFile 8 "4*4/2"
-
+createASMFile 10 "- - +10"
 
  Write-Host "OK"
