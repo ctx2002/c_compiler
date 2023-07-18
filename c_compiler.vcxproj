@@ -137,7 +137,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="codegen.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="parser.c" />
+    <ClCompile Include="tokenize.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="integer.asm">
@@ -146,6 +149,9 @@
     <Text Include="test.ps1">
       <FileType>Document</FileType>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="chibicc.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
