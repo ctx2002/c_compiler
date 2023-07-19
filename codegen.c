@@ -1,6 +1,19 @@
 #include "chibicc.h"
 //code generator
 static int depth;
+
+// Compute the absolute address of a given node.
+// It's an error if a given node does not reside in memory.
+static void gen_addr(Node* node) {
+	if (node->kind == ND_VAR) {
+		int offset = (node->name - 'a' + 1) * 8;
+		printf("    lea rax, %d[rbp]\n", -offset);
+		return;
+	}
+
+	error("not an lvalue");
+}
+
 static void push()
 {
 	printf("    push rax\n");
@@ -21,9 +34,25 @@ static void gen_expr(Node* node)
 	}
 	if (node->kind == ND_NEG) {
 		gen_expr(node->lhs);
-		printf("  neg rax\n");
+		printf("    neg rax\n");
 		return;
 	}
+
+	switch (node->kind) {
+
+		case ND_VAR:
+			gen_addr(node);
+			printf("    mov rax, [rax]\n");
+			return;
+		case ND_ASSIGN:
+			gen_addr(node->lhs);
+			push();
+			gen_expr(node->rhs);
+			pop("rdi");
+			printf("    mov [rdi], rax\n");
+			return;
+	}
+
 	gen_expr(node->rhs);
 	push();
 	gen_expr(node->lhs);
@@ -56,28 +85,28 @@ static void gen_expr(Node* node)
 	  // first operand and then setting the status flags in the same manner as
 	  // the SUB instruction. When an immediate value is used as an operand,
 	  // it is sign-extended to the length of the first operand
-		printf("  cmp rax, rdi\n");
+		printf("    cmp rax, rdi\n");
 
 		if (node->kind == ND_EQ) {
 			//The sete instruction (and its equivalent, setz)
 			//sets its argument to 1 if the zero flag is set or to 0 otherwise
-			printf("  sete al\n");
+			printf("    sete al\n");
 		}
 		else if (node->kind == ND_NE) {
 			// 	SETNE r/m8 	Set byte if not equal (ZF=0).
-			printf("  setne al\n");
+			printf("    setne al\n");
 		}
 		else if (node->kind == ND_LT) {
 			//SETL r/m8 	Set byte if less (SF<>OF).
-			printf("  setl al\n");
+			printf("    setl al\n");
 		}
 		else if (node->kind == ND_LE) {
 			// 	SETLE r/m8 	Set byte if less or equal (ZF=1 or SF<>OF).
-			printf("  setle al\n");
+			printf("    setle al\n");
 		}
 
 		//printf("  movzb %%al, %%rax\n");
-		printf("  movzx rax, al\n");
+		printf("    movzx rax, al\n");
 		return;
 	}
 	error("invalid expression");
@@ -96,10 +125,16 @@ void codegen(Node* node) {
 	puts("global main");
 	puts("section .text");
 	puts("main:");
+	// Prologue
+	printf("    push rbp\n");
+	printf("    mov rbp, rsp\n");
+	printf("    sub rsp, 208\n");
 	// Traverse the AST to emit assembly.
 	for (Node* n = node; n; n = n->next) {
 		gen_stmt(n);
 		assert(depth == 0);
 	}
+	puts("    mov rsp, rbp");
+	puts("    pop rbp");
 	puts("ret");
 }

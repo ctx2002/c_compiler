@@ -44,5 +44,8 @@ createASMFile 1 '1>=1;'
 createASMFile 0 '1>=2;'
 
 createASMFile 3 '1; 2; 3;'
+createASMFile 3 'a=3; a;'
+createASMFile 8 'a=3; z=5; a+z;'
+createASMFile 6 'a=b=3; a+b;'
 
  Write-Host "OK"

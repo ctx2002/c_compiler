@@ -8,6 +8,7 @@
 #include <string.h>
 
 typedef enum {
+	TK_IDENT, // Identifiers
 	TK_PUNCT, // Punctuators
 	TK_NUM,   // Numeric literals
 	TK_EOF,   // End-of-file markers
@@ -45,6 +46,8 @@ typedef enum {
 	ND_NE,  // !=
 	ND_LT,  // <
 	ND_LE,  // <=
+	ND_ASSIGN,    // =
+	ND_VAR,       // Variable
 	ND_EXPR_STMT, // Expression statement
 } NodeKind;
 
@@ -55,6 +58,7 @@ struct Node {
 	Node* next;    // Next node
 	Node* lhs;     // Left-hand side
 	Node* rhs;     // Right-hand side
+	char name;     // Used if kind == ND_VAR
 	int val;       // Used if kind == ND_NUM
 };
 

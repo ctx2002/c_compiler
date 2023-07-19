@@ -89,6 +89,13 @@ Token* tokenize(char* p)
 			curr->len = p - q;
 			continue;
 		}
+
+		if ('a' <= *p && *p <= 'z') {
+			curr = curr->next = new_token(TK_IDENT, p, p + 1);
+			p++;
+			continue;
+		}
+
 		int len = read_punct(p);
 		if (len > 0) {
 			curr = curr->next = new_token(TK_PUNCT, p, p + len);
