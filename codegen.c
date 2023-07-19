@@ -83,12 +83,23 @@ static void gen_expr(Node* node)
 	error("invalid expression");
 }
 
+static void gen_stmt(Node* node) {
+	if (node->kind == ND_EXPR_STMT) {
+		gen_expr(node->lhs);
+		return;
+	}
+
+	error("invalid statement");
+}
+
 void codegen(Node* node) {
 	puts("global main");
 	puts("section .text");
 	puts("main:");
 	// Traverse the AST to emit assembly.
-	gen_expr(node);
+	for (Node* n = node; n; n = n->next) {
+		gen_stmt(n);
+		assert(depth == 0);
+	}
 	puts("ret");
-	assert(depth == 0);
 }
